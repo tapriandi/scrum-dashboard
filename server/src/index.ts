@@ -308,9 +308,9 @@ app.put(
     const by = userOf(req);
     const featureId = Number(req.params.id);
     const links: LinkSpec[] = Array.isArray(req.body?.links) ? req.body.links : [];
-    const before = (await db.execute({ sql: 'SELECT epic_key FROM feature_jira WHERE feature_id = ?', args: [featureId] })).rows as {
-      epic_key: string | null;
-    }[];
+    const before = (
+      await db.execute({ sql: 'SELECT epic_key FROM feature_jira WHERE feature_id = ?', args: [featureId] })
+    ).rows as unknown as { epic_key: string | null }[];
     await db.execute({ sql: 'DELETE FROM feature_jira WHERE feature_id = ?', args: [featureId] });
     for (const l of links) {
       if (!l.epicKey && !l.label && !l.jql) continue;
