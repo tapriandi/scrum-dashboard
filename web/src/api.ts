@@ -1,15 +1,33 @@
 import { getUser } from './user';
 import type { AppState, ChangeLogEntry, JiraLink, JiraLinkResult } from './types';
 
+const AUTH_KEY = 'scrum-dashboard-auth';
+
+export function getAuth(): string {
+  return localStorage.getItem(AUTH_KEY) ?? '';
+}
+
+export function setAuth(password: string): void {
+  localStorage.setItem(AUTH_KEY, password);
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`/api${path}`, {
     ...init,
     headers: {
       'content-type': 'application/json',
       'x-user': encodeURIComponent(getUser()),
+      'x-auth': getAuth(),
       ...(init?.headers ?? {}),
     },
   });
+  if (res.status === 401) {
+    const pw = window.prompt('Password required:');
+    if (pw != null) {
+      setAuth(pw);
+      return request<T>(path, init);
+    }
+  }
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(body.error ?? `Request failed: ${res.status}`);

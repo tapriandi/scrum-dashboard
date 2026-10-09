@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express, { type Request, type Response, type NextFunction } from 'express';
+import { timingSafeEqual } from 'node:crypto';
 import { db } from './db.js';
 import { getSettings, setSetting, logChange } from './store.js';
 import { jiraConfigured, jqlForLink, readCache, syncAll, syncJql, type LinkSpec } from './jira.js';
@@ -7,6 +8,21 @@ import { weekRange, todayWeekCode } from './weeks.js';
 
 const app = express();
 app.use(express.json());
+
+// Shared-secret gate for public deployment. No env var = open (local dev).
+const AUTH_PASSWORD = process.env.AUTH_PASSWORD;
+app.use((req, res, next) => {
+  if (!AUTH_PASSWORD) return next();
+  if (req.method === 'OPTIONS') return next();
+  const provided = String(req.header('x-auth') ?? '');
+  const ok = (() => {
+    const a = Buffer.from(provided);
+    const b = Buffer.from(AUTH_PASSWORD);
+    return a.length === b.length && timingSafeEqual(a, b);
+  })();
+  if (ok) return next();
+  res.status(401).json({ error: 'auth required' });
+});
 
 const SYNC_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -384,11 +400,17 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 const port = Number(process.env.PORT ?? 4000);
-app.listen(port, '127.0.0.1', () => {
-  console.log(`scrum-dashboard server on http://127.0.0.1:${port} (jira ${jiraConfigured ? 'configured' : 'NOT configured'})`);
-});
 
-if (jiraConfigured) {
-  void syncAll();
-  setInterval(() => void syncAll(), SYNC_INTERVAL_MS);
+// Vercel serverless imports this module for the exported app; only listen when run directly.
+if (process.env.VERCEL !== '1') {
+  app.listen(port, '127.0.0.1', () => {
+    console.log(`scrum-dashboard server on http://127.0.0.1:${port} (jira ${jiraConfigured ? 'configured' : 'NOT configured'})`);
+  });
+
+  if (jiraConfigured) {
+    void syncAll();
+    setInterval(() => void syncAll(), SYNC_INTERVAL_MS);
+  }
 }
+
+export default app;

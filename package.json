@@ -1,0 +1,13 @@
+{
+  "name": "scrum-dashboard",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "cd web && npm install && npm run build",
+    "dev:server": "cd server && npm install && npm run dev",
+    "dev:web": "cd web && npm install && npm run dev"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
