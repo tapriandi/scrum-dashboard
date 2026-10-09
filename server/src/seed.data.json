@@ -1,0 +1,70 @@
+{
+  "settings": {
+    "be_total": 3,
+    "fe_total": 5,
+    "qa_weeks": 2,
+    "low_threshold": 1,
+    "calendar_start": "2026-09-28",
+    "weeks_visible": 12
+  },
+  "releases": [
+    {
+      "name": "Release 16 Oct",
+      "fixedDate": "2026-10-16",
+      "status": "regression",
+      "notes": "Current production release. Regression in progress during S56W1."
+    }
+  ],
+  "features": [
+    {
+      "name": "F&B Iteration 1",
+      "confirmed": true,
+      "jira": [{ "epicKey": "GF-4446" }, { "epicKey": "GF-4445" }, { "epicKey": "GF-4511" }],
+      "dev": { "startWeek": "S55W1", "durationWeeks": 7, "status": "confirmed", "reason": "3.5 sprints, S55W1 to S58W1" }
+    },
+    {
+      "name": "Refund Flow",
+      "confirmed": true,
+      "product": { "startWeek": "S56W1", "durationWeeks": 1, "targetDate": "2026-10-16", "status": "in_progress", "reason": "Only the end date (16 Oct) is known. Bar shows the target week; set the real start and duration." },
+      "dev": { "startWeek": "S56W2", "durationWeeks": 4, "status": "planned", "reason": "2 sprints, S56W2 to S58W1" }
+    },
+    {
+      "name": "Financial Report Export",
+      "confirmed": true,
+      "product": { "status": "done", "reason": "Product done, handed over to Far" },
+      "dev": { "owner": "Far", "startWeek": "S56W1", "durationWeeks": 2, "status": "planned", "reason": "1 sprint within S56" }
+    },
+    {
+      "name": "Financial Report EGUI",
+      "confirmed": false,
+      "product": { "startWeek": "S56W2", "durationWeeks": 1, "targetDate": "2026-10-19", "status": "in_progress", "reason": "Only the end date (19 Oct) is known. Bar shows the target week; set the real start and duration." },
+      "dev": { "owner": "Far", "startWeek": "S57W2", "durationWeeks": 3, "status": "to_confirm", "reason": "1.5 sprints, S57W2 to S58W2. Estimate to be confirmed." }
+    },
+    {
+      "name": "Reservation List Daily",
+      "confirmed": true,
+      "notes": "New. Pull forward if capacity opens.",
+      "product": { "startWeek": "S55W2", "durationWeeks": 1, "status": "final", "reason": "Product final this week" },
+      "dev": { "startWeek": "S56W2", "durationWeeks": 2, "status": "planned", "reason": "1 sprint, S56W2 to S57W1" }
+    },
+    {
+      "name": "Locker Number",
+      "confirmed": true,
+      "notes": "New.",
+      "product": { "startWeek": "S56W1", "durationWeeks": 1, "targetDate": "2026-10-16", "status": "in_progress", "reason": "Only the end date (16 Oct) is known. Bar shows the target week; set the real start and duration." },
+      "dev": { "startWeek": "S56W2", "durationWeeks": 3, "status": "planned", "reason": "1.5 sprints, S56W2 to S57W2" }
+    },
+    {
+      "name": "Deselect Deposit (cancel action)",
+      "confirmed": false,
+      "notes": "New. Not confirmed.",
+      "product": { "status": "pending", "reason": "Product estimate pending, due next week" }
+    },
+    {
+      "name": "Technical debt backlog (e.g. short link)",
+      "confirmed": true,
+      "isFiller": true,
+      "notes": "Filler work for weeks with free capacity."
+    }
+  ]
+}
