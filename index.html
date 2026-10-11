@@ -434,12 +434,12 @@ function renderEditor() {
         <div class="field"><label>From</label><input type="date" value="${s.start}" onchange="setSlot('${f.id}','${s.id}','start',this.value)"></div>
         <div class="field"><label>To</label><input type="date" value="${s.end}" onchange="setSlot('${f.id}','${s.id}','end',this.value)"></div>
         ${s.team === 'tech' ? `
-        <div class="field"><label>FE count</label><input type="number" min="0" value="${s.fe||0}" onchange="setSlot('${f.id}','${s.id}','fe',+this.value)"></div>
-        <div class="field"><label>FE from</label><input type="date" value="${s.feStart||''}" onchange="setSlot('${f.id}','${s.id}','feStart',this.value)"></div>
-        <div class="field"><label>FE to</label><input type="date" value="${s.feEnd||''}" onchange="setSlot('${f.id}','${s.id}','feEnd',this.value)"></div>
         <div class="field"><label>BE count</label><input type="number" min="0" value="${s.be||0}" onchange="setSlot('${f.id}','${s.id}','be',+this.value)"></div>
         <div class="field"><label>BE from</label><input type="date" value="${s.beStart||''}" onchange="setSlot('${f.id}','${s.id}','beStart',this.value)"></div>
-        <div class="field"><label>BE to</label><input type="date" value="${s.beEnd||''}" onchange="setSlot('${f.id}','${s.id}','beEnd',this.value)"></div>` : `
+        <div class="field"><label>BE to</label><input type="date" value="${s.beEnd||''}" onchange="setSlot('${f.id}','${s.id}','beEnd',this.value)"></div>
+        <div class="field"><label>FE count</label><input type="number" min="0" value="${s.fe||0}" onchange="setSlot('${f.id}','${s.id}','fe',+this.value)"></div>
+        <div class="field"><label>FE from</label><input type="date" value="${s.feStart||''}" onchange="setSlot('${f.id}','${s.id}','feStart',this.value)"></div>
+        <div class="field"><label>FE to</label><input type="date" value="${s.feEnd||''}" onchange="setSlot('${f.id}','${s.id}','feEnd',this.value)"></div>` : `
         <div class="field"><label>Activity label</label><input type="text" value="${esc(s.label||'')}" placeholder="e.g. initial design" onchange="setSlot('${f.id}','${s.id}','label',this.value)"></div>`}
         <button class="btn-del" onclick="delSlot('${f.id}','${s.id}')">✕</button>
       </div>`).join('');
