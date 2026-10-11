@@ -1,3 +1,6 @@
+import { mkdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createClient, type Client } from '@libsql/client';
 
 // Turso when env vars present, otherwise local file (local dev unchanged).
@@ -93,14 +96,13 @@ CREATE INDEX IF NOT EXISTS idx_feature_jira_feature ON feature_jira(feature_id);
 CREATE INDEX IF NOT EXISTS idx_change_log_feature ON change_log(feature_id);
 `;
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 let client: Client;
 if (TURSO_URL) {
   client = createClient({ url: TURSO_URL, authToken: TURSO_TOKEN });
 } else {
-  const { mkdirSync } = await import('node:fs');
-  const path = await import('node:path');
-  const { fileURLToPath } = await import('node:url');
-  const dataDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../data');
+  const dataDir = path.resolve(__dirname, '../../data');
   mkdirSync(dataDir, { recursive: true });
   client = createClient({ url: `file:${path.join(dataDir, 'dashboard.db')}` });
 }
