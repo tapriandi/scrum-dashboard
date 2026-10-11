@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS feature (
   dependencies TEXT,
   notes TEXT,
   is_filler INTEGER NOT NULL DEFAULT 0,
+  note TEXT,
   be_need REAL NOT NULL DEFAULT 0,
   fe_need REAL NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL,
@@ -43,6 +44,14 @@ CREATE TABLE IF NOT EXISTS feature_jira (
   epic_key TEXT,
   label TEXT,
   jql TEXT
+);
+
+CREATE TABLE IF NOT EXISTS regression_block (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  start_week TEXT NOT NULL,
+  weeks INTEGER NOT NULL DEFAULT 2,
+  notes TEXT
 );
 
 CREATE TABLE IF NOT EXISTS estimate (
@@ -113,6 +122,34 @@ await client.executeMultiple(SCHEMA);
 
 // CREATE TABLE IF NOT EXISTS never alters an existing table, so add late columns here.
 const featureCols = (await client.execute('PRAGMA table_info(feature)')).rows.map((c) => c.name as string);
+for (const col of ['be_need', 'fe_need', 'note']) {
+  if (!featureCols.includes(col)) await client.execute(`ALTER TABLE feature ADD COLUMN ${col} TEXT`);
+}
 for (const col of ['be_need', 'fe_need']) {
   if (!featureCols.includes(col)) await client.execute(`ALTER TABLE feature ADD COLUMN ${col} REAL NOT NULL DEFAULT 0`);
+}
+
+// estimate.kind CHECK widened: product,design,dev,qa_test. Old table may have old CHECK.
+const kindSql = (await client.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='estimate'")).rows[0]
+  ?.sql as string | undefined;
+if (kindSql && !kindSql.includes("'qa_test'")) {
+  await client.executeMultiple(`
+    ALTER TABLE estimate RENAME TO estimate_old;
+    CREATE TABLE estimate (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      feature_id INTEGER NOT NULL REFERENCES feature(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL CHECK (kind IN ('product', 'design', 'dev', 'qa_test')),
+      owner TEXT,
+      start_week TEXT,
+      duration_weeks REAL,
+      target_date TEXT,
+      status TEXT,
+      source TEXT,
+      last_changed_at TEXT NOT NULL,
+      last_changed_by TEXT,
+      reason TEXT
+    );
+    INSERT INTO estimate SELECT * FROM estimate_old;
+    DROP TABLE estimate_old;
+  `);
 }

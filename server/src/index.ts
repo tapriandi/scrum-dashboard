@@ -59,6 +59,7 @@ const FEATURE_FIELDS = [
   'parallel',
   'dependencies',
   'notes',
+  'note',
   'be_need',
   'fe_need',
 ] as const;
@@ -79,6 +80,7 @@ async function loadFeatures() {
     isFiller: Boolean(f.is_filler),
     dependencies: f.dependencies,
     notes: f.notes,
+    note: f.note,
     beNeed: f.be_need,
     feNeed: f.fe_need,
     estimates: Object.fromEntries(
@@ -113,11 +115,15 @@ app.get(
   wrap(async (_req, res) => {
     const settings = await getSettings();
     const releases = (await db.execute('SELECT id, name, fixed_date AS fixedDate, status, notes FROM release ORDER BY id')).rows;
+    const blocks = (
+      await db.execute('SELECT id, name, start_week AS startWeek, weeks, notes FROM regression_block ORDER BY id')
+    ).rows;
     res.json({
       settings,
       weeks: weekRange(settings.weeksVisible, settings.calendarStart),
       currentWeek: todayWeekCode(settings.calendarStart),
       releases,
+      regressionBlocks: blocks,
       features: await loadFeatures(),
       jiraConfigured,
     });
@@ -206,8 +212,10 @@ app.put(
   wrap(async (req, res) => {
     const by = userOf(req);
     const featureId = Number(req.params.id);
-    const kind = req.params.kind;
-    if (kind !== 'product' && kind !== 'dev') throw bad('kind must be product or dev');
+    const kind = String(req.params.kind);
+    if (!(['product', 'design', 'dev', 'qa_test'] as const).includes(kind as any)) {
+      throw bad('kind must be product, design, dev or qa_test');
+    }
     if (!(await db.execute({ sql: 'SELECT 1 FROM feature WHERE id = ?', args: [featureId] })).rows.length) {
       throw Object.assign(new Error('not found'), { status: 404 });
     }
@@ -219,7 +227,7 @@ app.put(
     const cur = (await db.execute({ sql: 'SELECT * FROM estimate WHERE feature_id = ? AND kind = ?', args: [featureId, kind] }))
       .rows[0] as any;
     const now = new Date().toISOString();
-    const source = kind === 'product' ? 'Product' : 'Dev';
+    const source = { product: 'Product', design: 'Design', dev: 'Dev', qa_test: 'QA' }[kind] ?? kind;
     const reason = body.reason ?? null;
 
     if (!cur) {
@@ -392,6 +400,85 @@ app.get(
       })
     ).rows;
     res.json(rows);
+  }),
+);
+
+app.post(
+  '/api/regression-blocks',
+  wrap(async (req, res) => {
+    const by = userOf(req);
+    const name = String(req.body?.name ?? '').trim();
+    const startWeek = String(req.body?.startWeek ?? '').trim();
+    if (!name) throw bad('name required');
+    if (!WEEK_RE.test(startWeek)) throw bad('startWeek must look like S58W2');
+    const weeks = Number(req.body?.weeks ?? 2);
+    if (!(weeks > 0 && weeks <= 8)) throw bad('weeks must be 1-8');
+    const r = await db.execute({
+      sql: 'INSERT INTO regression_block (name, start_week, weeks, notes) VALUES (?, ?, ?, ?)',
+      args: [name, startWeek, weeks, req.body?.notes ?? null],
+    });
+    await logChange({
+      entityType: 'regression_block',
+      entityId: Number(r.lastInsertRowid),
+      field: 'created',
+      from: null,
+      to: `${name} @ ${startWeek} (${weeks}w)`,
+      by,
+    });
+    res.status(201).json({ id: Number(r.lastInsertRowid) });
+  }),
+);
+
+app.patch(
+  '/api/regression-blocks/:id',
+  wrap(async (req, res) => {
+    const by = userOf(req);
+    const id = Number(req.params.id);
+    const cur = (await db.execute({ sql: 'SELECT * FROM regression_block WHERE id = ?', args: [id] })).rows[0] as any;
+    if (!cur) throw Object.assign(new Error('not found'), { status: 404 });
+    const sets: string[] = [];
+    const vals: unknown[] = [];
+    for (const f of ['name', 'start_week', 'weeks', 'notes'] as const) {
+      const key = f === 'start_week' ? 'startWeek' : f;
+      if (!(key in (req.body ?? {}))) continue;
+      let next = req.body[key];
+      if (f === 'start_week') {
+        if (!WEEK_RE.test(String(next))) throw bad('startWeek must look like S58W2');
+      }
+      if (f === 'weeks') {
+        next = Number(next);
+        if (!(next > 0 && next <= 8)) throw bad('weeks must be 1-8');
+      }
+      sets.push(`${f} = ?`);
+      vals.push(next);
+    }
+    if (sets.length) {
+      await db.execute({
+        sql: `UPDATE regression_block SET ${sets.join(', ')} WHERE id = ?`,
+        args: [...(vals as any[]), id],
+      });
+      await logChange({
+        entityType: 'regression_block',
+        entityId: id,
+        field: sets.join(','),
+        from: `${cur.name} @ ${cur.start_week}`,
+        to: String(req.body.name ?? req.body.startWeek ?? req.body.weeks ?? ''),
+        by,
+      });
+    }
+    res.json({ ok: true });
+  }),
+);
+
+app.delete(
+  '/api/regression-blocks/:id',
+  wrap(async (req, res) => {
+    const by = userOf(req);
+    const id = Number(req.params.id);
+    const r = await db.execute({ sql: 'DELETE FROM regression_block WHERE id = ?', args: [id] });
+    if (!r.rowsAffected) throw Object.assign(new Error('not found'), { status: 404 });
+    await logChange({ entityType: 'regression_block', entityId: id, field: 'deleted', from: id, to: null, by });
+    res.json({ ok: true });
   }),
 );
 
