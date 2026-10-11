@@ -1,7 +1,7 @@
-import type { Estimate, Feature, Settings, WeekInfo } from './types';
+import type { Estimate, Feature, RegressionBlock, Settings, WeekInfo } from './types';
 import { addDays, lastWorkday, weekIndex } from './weeks';
 
-export type BarKind = 'product' | 'dev' | 'qa';
+export type BarKind = 'product' | 'design' | 'dev' | 'qa_test';
 
 export interface Bar {
   kind: BarKind;
@@ -27,20 +27,49 @@ export function earliestRelease(f: Feature, weeks: WeekInfo[], qaWeeks: number):
   return end ? addDays(end, qaWeeks * 7) : null;
 }
 
-export function barsFor(f: Feature, weeks: WeekInfo[], qaWeeks: number): Bar[] {
+export function barsFor(f: Feature, _weeks: WeekInfo[], _qaWeeks: number): Bar[] {
   const bars: Bar[] = [];
-  for (const kind of ['product', 'dev'] as const) {
+  for (const kind of ['product', 'design', 'dev', 'qa_test'] as const) {
     const e = f.estimates[kind];
-    const idx = weekIndex(weeks, e?.startWeek);
+    const idx = weekIndex(_weeks, e?.startWeek);
     if (e && idx >= 0 && e.durationWeeks && e.durationWeeks > 0) {
       bars.push({ kind, startIdx: idx, span: Math.ceil(e.durationWeeks), dashed: isDashed(f, e), estimate: e });
     }
   }
-  const dev = bars.find((b) => b.kind === 'dev');
-  if (dev && qaWeeks > 0) {
-    bars.push({ kind: 'qa', startIdx: dev.startIdx + dev.span, span: qaWeeks, dashed: dev.dashed });
-  }
   return bars;
+}
+
+export interface RegressionSpan {
+  block: RegressionBlock;
+  startIdx: number;
+  span: number;
+}
+
+export function regressionSpans(blocks: RegressionBlock[], weeks: WeekInfo[]): RegressionSpan[] {
+  const out: RegressionSpan[] = [];
+  for (const b of blocks) {
+    const idx = weekIndex(weeks, b.startWeek);
+    if (idx >= 0) out.push({ block: b, startIdx: idx, span: Math.min(b.weeks, weeks.length - idx) });
+  }
+  return out;
+}
+
+/** Features whose dev (or qa_test) bar runs into a regression band = not done before regression starts. */
+export function regressionConflicts(features: Feature[], blocks: RegressionBlock[], weeks: WeekInfo[]): Map<number, string[]> {
+  const conflicts = new Map<number, string[]>();
+  for (const r of regressionSpans(blocks, weeks)) {
+    for (const f of features) {
+      const bars = barsFor(f, weeks, 0);
+      const last = bars.find((b) => b.kind === 'qa_test') ?? bars.find((b) => b.kind === 'dev');
+      if (!last) continue;
+      if (last.startIdx + last.span > r.startIdx) {
+        const list = conflicts.get(r.block.id) ?? [];
+        list.push(f.name);
+        conflicts.set(r.block.id, list);
+      }
+    }
+  }
+  return conflicts;
 }
 
 export function warningsFor(f: Feature, weeks: WeekInfo[]): string[] {

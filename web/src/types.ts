@@ -41,11 +41,20 @@ export interface Feature {
   isFiller: boolean;
   dependencies: string | null;
   notes: string | null;
+  note: string | null;
   beNeed: number;
   feNeed: number;
-  estimates: Partial<Record<'product' | 'dev', Estimate>>;
+  estimates: Partial<Record<'product' | 'design' | 'dev' | 'qa_test', Estimate>>;
   resources: ResourceRow[];
   jira: JiraLink[];
+}
+
+export interface RegressionBlock {
+  id: number;
+  name: string;
+  startWeek: string;
+  weeks: number;
+  notes: string | null;
 }
 
 export interface Release {
@@ -70,6 +79,7 @@ export interface AppState {
   weeks: WeekInfo[];
   currentWeek: string;
   releases: Release[];
+  regressionBlocks: RegressionBlock[];
   features: Feature[];
   jiraConfigured: boolean;
 }

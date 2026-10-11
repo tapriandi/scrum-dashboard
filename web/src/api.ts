@@ -40,8 +40,14 @@ export const api = {
   createFeature: (name: string) => request<{ id: number }>('/features', { method: 'POST', body: JSON.stringify({ name }) }),
   patchFeature: (id: number, patch: Record<string, unknown>) =>
     request('/features/' + id, { method: 'PATCH', body: JSON.stringify(patch) }),
-  putEstimate: (id: number, kind: 'product' | 'dev', body: Record<string, unknown>) =>
+  putEstimate: (id: number, kind: 'product' | 'design' | 'dev' | 'qa_test', body: Record<string, unknown>) =>
     request(`/features/${id}/estimate/${kind}`, { method: 'PUT', body: JSON.stringify(body) }),
+  createRegressionBlock: (body: { name: string; startWeek: string; weeks?: number; notes?: string }) =>
+    request<{ id: number }>('/regression-blocks', { method: 'POST', body: JSON.stringify(body) }),
+  patchRegressionBlock: (id: number, patch: Record<string, unknown>) =>
+    request('/regression-blocks/' + id, { method: 'PATCH', body: JSON.stringify(patch) }),
+  deleteRegressionBlock: (id: number) =>
+    request('/regression-blocks/' + id, { method: 'DELETE' }),
   putResources: (id: number, rows: { week: string; be: number; fe: number }[], reason?: string) =>
     request(`/features/${id}/resources`, { method: 'PUT', body: JSON.stringify({ rows, reason }) }),
   putJiraLinks: (id: number, links: JiraLink[]) =>

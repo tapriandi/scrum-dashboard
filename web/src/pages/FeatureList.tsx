@@ -19,6 +19,7 @@ function Detail({ feature, state }: { feature: Feature; state: AppState }) {
   });
   const [deps, setDeps] = useState(feature.dependencies ?? '');
   const [notes, setNotes] = useState(feature.notes ?? '');
+  const [chartNote, setChartNote] = useState(feature.note ?? '');
   const [release, setRelease] = useState(feature.release ?? '');
   const [priority, setPriority] = useState(feature.priority ?? '');
   const [reason, setReason] = useState('');
@@ -87,6 +88,16 @@ function Detail({ feature, state }: { feature: Feature; state: AppState }) {
             onBlur={() => notes !== (feature.notes ?? '') && patch.mutate({ notes: notes || null })}
           />
         </label>
+        <label className="col-span-2 flex flex-col gap-1">
+          Chart note (shows on Timeline next to bars)
+          <input
+            className="input"
+            placeholder="e.g. Waiting design final Oct 7"
+            value={chartNote}
+            onChange={(x) => setChartNote(x.target.value)}
+            onBlur={() => chartNote !== (feature.note ?? '') && patch.mutate({ note: chartNote || null })}
+          />
+        </label>
         <label className="flex flex-col gap-1">
           BE people needed (during Dev)
           <input
@@ -121,7 +132,9 @@ function Detail({ feature, state }: { feature: Feature; state: AppState }) {
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <EstimateForm key={`p-${feature.id}-${feature.estimates.product?.lastChangedAt}`} feature={feature} kind="product" weeks={state.weeks} />
-        <EstimateForm key={`d-${feature.id}-${feature.estimates.dev?.lastChangedAt}`} feature={feature} kind="dev" weeks={state.weeks} />
+        <EstimateForm key={`d-${feature.id}-${feature.estimates.design?.lastChangedAt}`} feature={feature} kind="design" weeks={state.weeks} />
+        <EstimateForm key={`v-${feature.id}-${feature.estimates.dev?.lastChangedAt}`} feature={feature} kind="dev" weeks={state.weeks} />
+        <EstimateForm key={`q-${feature.id}-${feature.estimates.qa_test?.lastChangedAt}`} feature={feature} kind="qa_test" weeks={state.weeks} />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <ResourceGrid key={`r-${feature.id}-${JSON.stringify(feature.resources)}`} feature={feature} weeks={state.weeks} settings={state.settings} />

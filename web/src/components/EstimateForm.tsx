@@ -13,7 +13,7 @@ export function EstimateForm({
   weeks,
 }: {
   feature: Feature;
-  kind: 'product' | 'dev';
+  kind: 'product' | 'design' | 'dev' | 'qa_test';
   weeks: WeekInfo[];
 }) {
   const e = feature.estimates[kind];
@@ -45,7 +45,7 @@ export function EstimateForm({
   });
 
   const end = lastWorkday(weeks, startWeek || null, duration ? Number(duration) : null);
-  const label = kind === 'product' ? 'Product estimate' : 'Dev estimate';
+  const label = { product: 'Product estimate', design: 'Design estimate', dev: 'Dev estimate', qa_test: 'QA test estimate' }[kind];
 
   return (
     <div className="card">
