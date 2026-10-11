@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scrum Dashboard — Timeline</title>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --panel: #ffffff;
+    --text: #1a1a1a;
+    --muted: #8a8a85;
+    --line: #e6e6e2;
+    --line-strong: #cfcfca;
+    --c-product: #3b5bdb;
+    --c-design: #7048e8;
+    --c-tech: #37b24d;
+    --c-qa: #f08c00;
+    --today: #e03131;
+    --labelw: 260px;
+    --dayw: 24px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, sans-serif;
+    background: var(--bg); color: var(--text); font-size: 15px; padding: 18px;
+  }
+  h1 { font-size: 20px; margin-bottom: 10px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
+
+  /* ---------- accordion umum ---------- */
+  .acc-head {
+    display: flex; align-items: center; gap: 8px; padding: 9px 12px;
+    cursor: pointer; user-select: none;
+  }
+  .acc-head:hover { background: #fafaf8; }
+  .acc-head .chev { margin-left: auto; color: var(--muted); font-size: 11px; }
+  .acc-title { font-weight: 700; font-size: 15px; }
+  .acc-sub { color: var(--muted); font-size: 13px; }
+  .acc-body { padding: 4px 12px 12px; border-top: 1px solid var(--line); }
+  .panel.open .acc-body { display: block; }
+  .panel:not(.open) .acc-body { display: none; }
+  .chev::after { content: "▸"; }
+  .panel.open > .acc-head .chev::after, .feat.open > .acc-head .chev::after { content: "▾"; }
+
+  /* ---------- pengaturan sprint ---------- */
+  .set-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; margin-top: 8px; }
+  label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 3px; }
+  input, select, button {
+    font-family: inherit; background: #fff; color: var(--text);
+    border: 1px solid var(--line-strong); border-radius: 7px; padding: 5px 8px; font-size: 14px;
+  }
+  input[type=date] { color-scheme: light; }
+  input[type=number] { width: 60px; }
+  button { cursor: pointer; }
+  button:hover { background: #f1f1ee; }
+  .btn-primary { background: var(--text); color: #fff; border-color: var(--text); font-weight: 600; }
+  .btn-primary:hover { background: #333; }
+  .btn-del { color: #c92a2a; border-color: #ffc9c9; padding: 3px 7px; }
+  .btn-sm { padding: 5px 10px; font-size: 13px; }
+
+  /* ---------- editor fitur (accordion per fitur) ---------- */
+  .feat { border: 1px solid var(--line); border-radius: 8px; margin-bottom: 7px; background: #fff; }
+  .feat .acc-head { padding: 7px 10px; }
+  .feat-name { font-weight: 600; background: transparent; border: 1px solid transparent; padding: 2px 4px; border-radius: 5px; flex: 1; min-width: 140px; }
+  .feat-name:hover { border-color: var(--line); }
+  .feat-name:focus { border-color: var(--line-strong); outline: none; background: #fff; }
+  .prio-sel { width: 100px; font-size: 13px; padding: 4px 6px; }
+  .prio-sel.high { background: #fbe3e3; color: #b02a2a; border-color: #e3a6a6; }
+  .prio-sel.medium { background: #fdf6d8; color: #9a7d1a; border-color: #e0d290; }
+  .prio-sel.low { background: #e3ecfb; color: #2c5cb0; border-color: #a6c0e3; }
+  .badge { font-size: 12px; color: var(--muted); background: #f1f1ee; border-radius: 10px; padding: 2px 8px; white-space: nowrap; }
+  .feat-body { padding: 6px 10px 10px; border-top: 1px dashed var(--line); }
+  .feat:not(.open) .feat-body { display: none; }
+  .slot { display: flex; gap: 6px; align-items: flex-end; flex-wrap: wrap; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+  .slot:last-child { border-bottom: none; }
+  .slot .field { display: flex; flex-direction: column; }
+  .empty-note { color: var(--muted); font-size: 13px; padding: 6px 0; }
+  .rel-item { display: flex; gap: 8px; align-items: center; font-size: 13px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+  .rel-item:last-child { border-bottom: none; }
+  .feat-foot { display: flex; gap: 6px; margin-top: 6px; }
+
+  /* ---------- gantt ---------- */
+  .legend { display: flex; gap: 12px; font-size: 13px; flex-wrap: wrap; margin: 8px 2px; color: #555; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; }
+  .d-product { background: var(--c-product); }
+  .d-design { background: var(--c-design); }
+  .d-tech { background: var(--c-tech); }
+  .d-qa { background: var(--c-qa); }
+
+  .gantt-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  .gantt { position: relative; min-width: max-content; }
+  .g-row { display: flex; border-bottom: 1px solid var(--line); }
+  .g-row:last-child { border-bottom: none; }
+
+  .g-label {
+    width: var(--labelw); min-width: var(--labelw); position: sticky; left: 0; z-index: 3;
+    background: #fff; border-right: 1px solid var(--line-strong);
+    display: flex; align-items: center; gap: 6px; padding: 0 8px;
+    white-space: nowrap; overflow: hidden; font-size: 14px;
+  }
+  .g-track {
+    position: relative; flex: 1;
+    background-image:
+      repeating-linear-gradient(to right, transparent 0, transparent calc(var(--dayw) * 5), #fdf6d8aa calc(var(--dayw) * 5), #fdf6d8aa calc(var(--dayw) * 7)),
+      repeating-linear-gradient(to right, transparent 0, transparent calc(var(--dayw) - 1px), var(--line) calc(var(--dayw) - 1px), var(--line) var(--dayw));
+  }
+
+  /* header berlapis */
+  .h-month .g-label, .h-month .g-track, .h-sprint .g-label, .h-sprint .g-track,
+  .h-week .g-label, .h-week .g-track, .h-day .g-label, .h-day .g-track { background: #fafaf8; }
+  .h-month { border-bottom: 1px solid var(--line-strong); }
+  .h-month .g-label { font-weight: 700; font-size: 12px; }
+  .h-sprint .g-label { font-size: 11px; color: var(--muted); }
+  .h-week .g-label { font-size: 11px; color: var(--muted); }
+  .h-day .g-label { font-size: 11px; color: var(--muted); }
+  .h-day .g-track, .h-week .g-track, .h-month .g-track, .h-sprint .g-track {
+    background-image: repeating-linear-gradient(to right, transparent 0, transparent calc(var(--dayw) - 1px), var(--line) calc(var(--dayw) - 1px), var(--line) var(--dayw));
+  }
+  .h-month-cell, .h-sprint-cell, .h-week-cell {
+    position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 11.5px; overflow: hidden; white-space: nowrap;
+  }
+  .h-month-cell { font-weight: 700; font-size: 13px; background: #eef1f6; }
+  .h-sprint-cell { font-size: 12px; background: #fff; }
+  .h-sprint-cell:nth-child(even) { background: #f6f7f9; }
+  .h-week-cell { font-size: 12px; background: #fcfcfa; border-right: 1px solid var(--line); }
+  .sprint-pill {
+    background: #e7f0ff; border: 1px solid #9db8ef; color: #3b5bdb;
+    border-radius: 6px; padding: 1px 10px; font-weight: 600; font-size: 12px; height: 20px; line-height: 18px;
+  }
+  .sprint-pill.active { background: #3b5bdb; color: #fff; border-color: #3b5bdb; }
+  .h-day-cell {
+    position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: #777;
+  }
+  .h-day-cell.we { background: #fdf6d8; color: #b0a040; }
+  .h-day-cell.td { color: var(--today); font-weight: 700; }
+
+  .ms { position: absolute; top: 4px; width: 9px; height: 9px; background: #66a30d;
+    transform: rotate(45deg); z-index: 2; cursor: pointer; }
+  .ms:hover::after { content: attr(data-lbl); position: absolute; left: 14px; top: -2px; transform: rotate(-45deg);
+    background: #222; color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+
+  /* baris fitur */
+  .f-row .g-label, .f-row .g-prio { font-weight: 600; cursor: pointer; }
+  .f-row .g-label:hover, .f-row .g-prio:hover { background: #fafaf8; }
+  .g-prio {
+    width: 52px; min-width: 52px; position: sticky; z-index: 3;
+    left: var(--labelw); background: #fff; border-right: 1px solid var(--line-strong);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .f-chev { color: var(--muted); font-size: 10px; width: 12px; flex-shrink: 0; }
+  .f-prio { font-size: 10px; min-width: 44px; text-align: center; border-radius: 8px; padding: 1px 0; }
+  .f-prio.high { background: #fbe3e3; color: #b02a2a; }
+  .f-prio.medium { background: #fdf6d8; color: #9a7d1a; }
+  .f-prio.low { background: #e3ecfb; color: #2c5cb0; }
+  .sub-row .g-label { font-size: 11.5px; color: #666; padding-left: 26px; background: #fcfcfa; font-weight: 400; }
+  .sub-row .g-track { background: #fcfcfa; height: 30px; }
+  .f-row .g-track { height: 30px; }
+
+  .bar { position: absolute; height: 20px; border-radius: 7px; z-index: 2; color: #fff; font-size: 10px; line-height: 20px; text-align: center; font-weight: 700; overflow: hidden; white-space: nowrap; }
+  .bar-wrap { background: #d7eef2; color: #0a6674; border: 1.5px solid #6fb4c4; border-radius: 9px; }
+  .bar-product { background: #dbe2f8; color: #2c46b0; border: 1.5px solid #7d92d8; }
+  .f-row .g-track { height: 30px; }
+  .b-product { background: var(--c-product); }
+  .b-design { background: var(--c-design); }
+  .b-tech { background: var(--c-tech); }
+  .b-techfe { background: var(--c-tech); }
+  .b-techbe { background: #1098ad; }
+  .b-qa { background: var(--c-qa); }
+  .b-qareg { background: #26c93f; }
+  .b-release { background: #d63384; }
+  /* blok kolom penuh untuk QA Regression & Release */
+  .gantt-overlay { position: absolute; top: 0; bottom: 0; left: calc(var(--labelw) + 52px); width: max-content; z-index: 1; pointer-events: none; }
+  .col-block { position: absolute; top: 0; bottom: 0; z-index: 1; }
+  .col-block.qareg { background: #26c93f2e; border-left: 2px solid #26c93f; border-right: 2px solid #26c93f; }
+  .col-block.release { background: #d6338430; border-left: 2px solid #d63384; border-right: 2px solid #d63384; }
+  .col-block-lbl {
+    position: absolute; top: 0; height: 18px; z-index: 5; pointer-events: none;
+    font-size: 10px; font-weight: 700; color: #1a7a2e; background: #26c93f40;
+    text-align: center; overflow: hidden; white-space: nowrap; border-radius: 4px; line-height: 18px;
+  }
+  .col-block-lbl.release { color: #a02466; background: #d6338445; }
+  .bar-lbl { position: absolute; font-size: 12px; color: #777; white-space: nowrap; z-index: 2; padding-left: 5px; line-height: 13px; height: 13px; top: 5px; }
+  .f-row .bar-lbl { line-height: 12px; height: 12px; top: 3px; }
+
+  .cap-row .g-label { font-size: 10px; color: #999; background: #fafaf8; height: 18px; }
+  .cap-row .g-track { background: #fafaf8; height: 18px; }
+  .cap-row { height: 18px; }
+  .cap-v { position: absolute; top: 3px; font-size: 10px; color: #999; text-align: center; }
+  .cap-v.over { color: #c92a2a; font-weight: 700; }
+
+  .today-line { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--today); opacity: .7; z-index: 4; pointer-events: none; }
+  .note { font-size: 13px; color: #666; margin: 6px 2px; }
+  .note.warn { color: #c92a2a; }
+</style>
+</head>
+<body>
+
+<h1>Scrum Dashboard</h1>
+
+<!-- ============ PENGATURAN SPRINT (accordion) ============ -->
+<div class="panel" id="panelSettings">
+  <div class="acc-head" onclick="togglePanel('panelSettings')">
+    <span class="acc-title">Sprint Settings</span>
+    <span class="acc-sub" id="settingsSummary"></span>
+    <span class="chev"></span>
+  </div>
+  <div class="acc-body">
+    <div class="set-row">
+      <div><label>FE Capacity</label><input type="number" id="feCap" min="0"></div>
+      <div><label>BE Capacity</label><input type="number" id="beCap" min="0"></div>
+      <div><label>Milestone (date)</label><input type="date" id="msDate"></div>
+      <div><button class="btn-sm" onclick="addMilestone()">+ Milestone</button></div>
+      <div>
+        <button class="btn-sm" onclick="exportJson()">Export</button>
+        <button class="btn-sm" onclick="document.getElementById('importFile').click()">Import</button>
+        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJson(this)">
+      </div>
+    </div>
+    <div class="set-row">
+      <div><label>Release name</label><input type="text" id="relName" placeholder="Release A" style="width:110px"></div>
+      <div><label>QA Regression from</label><input type="date" id="relRegFrom"></div>
+      <div><label>QA Regression to</label><input type="date" id="relRegTo"></div>
+      <div><label>Release date</label><input type="date" id="relDate"></div>
+      <div style="align-self:end"><button class="btn-sm" onclick="addRelease()">+ Release plan</button></div>
+    </div>
+    <div id="releaseList" style="margin-top:8px"></div>
+    <div class="note" style="margin:6px 0 0">Sprints S56–S60 (2 weeks each) are generated automatically; S56 is the active sprint starting Oct 12. Milestones show as green diamonds. Export/Import to move data between devices.</div>
+  </div>
+</div>
+
+<!-- ============ TIMELINE ============ -->
+<div class="panel open" id="panelTimeline">
+  <div class="acc-head" onclick="togglePanel('panelTimeline')">
+    <span class="acc-title">Timeline</span>
+    <span class="acc-sub" id="timelineSub"></span>
+    <span class="chev"></span>
+  </div>
+  <div class="acc-body">
+    <div class="legend">
+      <span><i class="dot d-product"></i>Product</span>
+      <span><i class="dot d-design"></i>Design</span>
+      <span><i class="dot d-tech"></i>Tech</span>
+      <span><i class="dot d-qa"></i>QA</span>
+      <span class="acc-sub">click feature name to expand/collapse sub-teams · click diamond to remove milestone</span>
+    </div>
+    <div class="gantt-scroll"><div id="gantt" class="gantt"></div></div>
+    <div class="note" id="note"></div>
+  </div>
+</div>
+
+<!-- ============ EDITOR FITUR ============ -->
+<div class="panel" id="panelEditor">
+  <div class="acc-head" onclick="togglePanel('panelEditor')">
+    <span class="acc-title">Features &amp; Team Estimates</span>
+    <span class="acc-sub" id="editorSummary"></span>
+    <button class="btn-primary btn-sm" onclick="event.stopPropagation(); addFeature()">+ Feature</button>
+    <span class="chev"></span>
+  </div>
+  <div class="acc-body">
+    <div id="features"></div>
+  </div>
+</div>
+
+<script>
+const TEAMS = { product: 'Product', design: 'Design', tech: 'Tech', qa: 'QA', qareg: 'QA Regression', release: 'Release' };
+const KEY = 'scrum-dashboard-v2';
+const DAYW = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--dayw'));
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+let state = {
+  sprint: { anchor: { no: 56, start: '2026-10-12', weeks: 2 }, first: 56, last: 60, feCap: 5, beCap: 3 },
+  milestones: [],
+  releases: [],
+  features: []
+};
+try {
+  const s = localStorage.getItem(KEY);
+  if (s) {
+    const p = JSON.parse(s);
+    if (p && p.sprint && p.sprint.anchor) {
+      state = p;
+      if (state.sprint.first < state.sprint.anchor.no) state.sprint.first = state.sprint.anchor.no;
+      if (!Array.isArray(state.releases)) state.releases = [];
+      if (!Array.isArray(state.milestones)) state.milestones = [];
+      if (!Array.isArray(state.features)) state.features = [];
+    }
+  } else {
+    // migrasi dari key lama jika ada
+    const old = localStorage.getItem('scrum-dashboard-v1') || localStorage.getItem('scrum-dashboard');
+    if (old) { const p = JSON.parse(old); if (p && p.sprint && p.sprint.anchor) state = p; }
+  }
+} catch (e) {}
+
+function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+const uid = () => Math.random().toString(36).slice(2, 9);
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const parse = s => new Date(s + 'T00:00:00');
+const dstr = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+const daysBetween = (a, b) => Math.round((parse(b) - parse(a)) / 86400000);
+const isWe = d => d.getDay() === 0 || d.getDay() === 6;
+function monday(d) { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; }
+function getWeek(d) {
+  const t = new Date(d); t.setHours(0,0,0,0);
+  t.setDate(t.getDate() + 3 - ((t.getDay() + 6) % 7));
+  const w1 = new Date(t.getFullYear(), 0, 4);
+  return 1 + Math.round(((t - w1) / 86400000 - 3 + ((w1.getDay() + 6) % 7)) / 7);
+}
+const fmtDay = ds => { const d = parse(ds); return d.getDate() + ' ' + MONTHS[d.getMonth()]; };
+
+/* ---------- accordion ---------- */
+function togglePanel(id) { document.getElementById(id).classList.toggle('open'); }
+
+/* ---------- data ops ---------- */
+function addFeature() {
+  state.features.push({ id: uid(), name: 'New feature', prio: '', open: true, slots: [] });
+  save(); render();
+}
+function delFeature(id) { state.features = state.features.filter(f => f.id !== id); save(); render(); }
+function addSlot(fid) {
+  state.features.find(f => f.id === fid).slots.push(
+    { id: uid(), team: 'tech', start: state.sprint.start, end: state.sprint.start,
+      fe: 1, feStart: '', feEnd: '', be: 0, beStart: '', beEnd: '' });
+  save(); render();
+}
+function delSlot(fid, sid) {
+  const f = state.features.find(x => x.id === fid);
+  f.slots = f.slots.filter(s => s.id !== sid);
+  save(); render();
+}
+function setFeature(id, key, v) { state.features.find(f => f.id === id)[key] = v; save(); renderGantt(); }
+function toggleFeatOpen(id) {
+  const f = state.features.find(f => f.id === id);
+  f.open = !f.open; save(); renderEditor(); renderGantt();
+}
+function setSlot(fid, sid, key, v) {
+  const s = state.features.find(f => f.id === fid).slots.find(x => x.id === sid);
+  s[key] = v;
+  if (key === 'team' && v !== 'tech') { s.fe = 0; s.be = 0; s.feStart = s.feEnd = s.beStart = s.beEnd = ''; }
+  if (key === 'team' && v === 'tech' && !s.fe && !s.be) { s.fe = 1; s.feStart = s.start; s.feEnd = s.end; }
+  save(); render();
+}
+function addMilestone() {
+  const d = document.getElementById('msDate').value;
+  if (!d) return;
+  state.milestones.push({ id: uid(), date: d });
+  save(); renderGantt();
+}
+function delMilestone(id) { state.milestones = state.milestones.filter(m => m.id !== id); save(); renderGantt(); }
+
+/* ---------- release plan (code freeze + QA regression + release) ---------- */
+function addRelease() {
+  const name = document.getElementById('relName').value.trim();
+  const from = document.getElementById('relRegFrom').value;
+  const to = document.getElementById('relRegTo').value;
+  const date = document.getElementById('relDate').value;
+  if (!name || !from || !to || !date) { alert('Fill release name, regression from/to, and release date.'); return; }
+  if (to < from) { alert('Regression "to" must be after "from".'); return; }
+  state.releases.push({ id: uid(), name, regFrom: from, regTo: to, date });
+  document.getElementById('relName').value = '';
+  document.getElementById('relRegFrom').value = '';
+  document.getElementById('relRegTo').value = '';
+  document.getElementById('relDate').value = '';
+  save(); renderReleases(); renderGantt();
+}
+function delRelease(id) { state.releases = state.releases.filter(r => r.id !== id); save(); renderReleases(); renderGantt(); }
+function updRelease(id, key, v) {
+  const r = state.releases.find(x => x.id === id);
+  r[key] = v;
+  save(); renderReleases(); renderGantt();
+}
+function renderReleases() {
+  const box = document.getElementById('releaseList');
+  box.innerHTML = state.releases.map(r =>
+    `<div class="rel-item">
+      <input type="text" value="${esc(r.name)}" style="width:110px" onchange="updRelease('${r.id}','name',this.value)">
+      <span>freeze</span>
+      <input type="date" value="${r.regFrom}" onchange="updRelease('${r.id}','regFrom',this.value)">
+      <span>→</span>
+      <input type="date" value="${r.regTo}" onchange="updRelease('${r.id}','regTo',this.value)">
+      <span>release</span>
+      <input type="date" value="${r.date}" onchange="updRelease('${r.id}','date',this.value)">
+      <button class="btn-del" onclick="delRelease('${r.id}')">✕</button>
+    </div>`
+  ).join('') || '<div class="empty-note">No release plan yet — regression period blocks feature dev, release at the end.</div>';
+}
+
+/* ---------- pengaturan sprint ---------- */
+let g = {};
+function hydrateSprint() {
+  g = { feCap: document.getElementById('feCap'), beCap: document.getElementById('beCap') };
+  g.feCap.value = state.sprint.feCap; g.beCap.value = state.sprint.beCap;
+  [g.feCap, g.beCap].forEach(el => el.addEventListener('input', () => {
+    state.sprint.feCap = +g.feCap.value || 0;
+    state.sprint.beCap = +g.beCap.value || 0;
+    save(); renderGantt();
+  }));
+  renderReleases();
+}
+
+/* daftar sprint generated dari anchor */
+function sprints() {
+  const a = state.sprint.anchor;
+  const list = [];
+  for (let n = state.sprint.first; n <= state.sprint.last; n++) {
+    const offset = (n - a.no) * (a.weeks * 7);
+    const s = addDays(parse(a.start), offset);
+    const e = addDays(s, a.weeks * 7 - 1);
+    list.push({ no: n, start: dstr(s), end: dstr(e) });
+  }
+  return list;
+}
+
+/* ---------- editor fitur ---------- */
+function syncEditorBadge(f) {
+  const b = document.getElementById('badge-' + f.id);
+  if (b) b.textContent = f.slots.length + ' slot';
+}
+function renderEditor() {
+  const box = document.getElementById('features');
+  box.innerHTML = '';
+  state.features.forEach(f => {
+    const div = document.createElement('div');
+    div.className = 'feat' + (f.open ? ' open' : '');
+    const slotsHtml = f.slots.map(s => `
+      <div class="slot">
+        <div class="field"><label>Tim</label>
+          <select onchange="setSlot('${f.id}','${s.id}','team',this.value)">
+            ${Object.entries(TEAMS).map(([k,v]) => `<option value="${k}" ${s.team===k?'selected':''}>${v}</option>`).join('')}
+          </select></div>
+        <div class="field"><label>From</label><input type="date" value="${s.start}" onchange="setSlot('${f.id}','${s.id}','start',this.value)"></div>
+        <div class="field"><label>To</label><input type="date" value="${s.end}" onchange="setSlot('${f.id}','${s.id}','end',this.value)"></div>
+        ${s.team === 'tech' ? `
+        <div class="field"><label>FE count</label><input type="number" min="0" value="${s.fe||0}" onchange="setSlot('${f.id}','${s.id}','fe',+this.value)"></div>
+        <div class="field"><label>FE from</label><input type="date" value="${s.feStart||''}" onchange="setSlot('${f.id}','${s.id}','feStart',this.value)"></div>
+        <div class="field"><label>FE to</label><input type="date" value="${s.feEnd||''}" onchange="setSlot('${f.id}','${s.id}','feEnd',this.value)"></div>
+        <div class="field"><label>BE count</label><input type="number" min="0" value="${s.be||0}" onchange="setSlot('${f.id}','${s.id}','be',+this.value)"></div>
+        <div class="field"><label>BE from</label><input type="date" value="${s.beStart||''}" onchange="setSlot('${f.id}','${s.id}','beStart',this.value)"></div>
+        <div class="field"><label>BE to</label><input type="date" value="${s.beEnd||''}" onchange="setSlot('${f.id}','${s.id}','beEnd',this.value)"></div>` : `
+        <div class="field"><label>Activity label</label><input type="text" value="${esc(s.label||'')}" placeholder="e.g. initial design" onchange="setSlot('${f.id}','${s.id}','label',this.value)"></div>`}
+        <button class="btn-del" onclick="delSlot('${f.id}','${s.id}')">✕</button>
+      </div>`).join('');
+    div.innerHTML = `
+      <div class="acc-head" onclick="toggleFeatOpen('${f.id}')">
+        <span class="f-chev"></span>
+        <input type="text" class="feat-name" value="${esc(f.name)}" onclick="event.stopPropagation()" onchange="setFeature('${f.id}','name',this.value)">
+        <select class="prio-sel ${esc(f.prio)}" onclick="event.stopPropagation()" onchange="setFeature('${f.id}','prio',this.value)">
+          <option value="" ${!f.prio?'selected':''}>–</option>
+          <option value="high" ${f.prio==='high'?'selected':''}>High</option>
+          <option value="medium" ${f.prio==='medium'?'selected':''}>Medium</option>
+          <option value="low" ${f.prio==='low'?'selected':''}>Low</option>
+        </select>
+        <span class="badge" id="badge-${f.id}">${f.slots.length} slot</span>
+        <button class="btn-sm" onclick="event.stopPropagation(); addSlot('${f.id}')">+ Slot</button>
+        <button class="btn-del" onclick="event.stopPropagation(); delFeature('${f.id}')" >Delete</button>
+        <span class="chev"></span>
+      </div>
+      <div class="feat-body">
+        ${slotsHtml || '<div class="empty-note">No slots yet — add estimates per team; one feature can have many slots (e.g. design 12–13, QA 13, design revision 13, etc.).</div>'}
+      </div>`;
+    box.appendChild(div);
+  });
+  document.getElementById('editorSummary').textContent =
+    state.features.length + ' fitur';
+}
+
+/* ---------- range tampilan ---------- */
+function viewRange() {
+  const sp = sprints();
+  let min = sp[0].start, max = sp[sp.length - 1].end;
+  const push = ds => { if (ds && ds < min) min = ds; if (ds && ds > max) max = ds; };
+  state.features.forEach(f => f.slots.forEach(s => { push(s.start); push(s.end); }));
+  state.milestones.forEach(m => push(m.date));
+  return { start: dstr(monday(parse(min))), end: dstr(addDays(monday(parse(max)), 6)) };
+}
+
+/* ---------- gantt ---------- */
+function renderGantt() {
+  const el = document.getElementById('gantt');
+  el.innerHTML = '';
+  const { feCap, beCap } = state.sprint;
+  const sp = sprints();
+  const cur = sp.find(s => s.no === state.sprint.anchor.no);
+  document.getElementById('settingsSummary').textContent =
+    `S${sp[0].no}–S${sp[sp.length-1].no} · ${fmtDay(sp[0].start)} – ${fmtDay(sp[sp.length-1].end)} · ${feCap} FE / ${beCap} BE`;
+  document.getElementById('timelineSub').textContent =
+    `S${sp[0].no}–S${sp[sp.length-1].no} · active: ${cur.name || 'S' + cur.no} ${fmtDay(cur.start)} – ${fmtDay(cur.end)}`;
+
+  const { start, end } = viewRange();
+  const days = [];
+  for (let d = parse(start); d <= parse(end); d = addDays(d, 1)) days.push(dstr(d));
+  const today = dstr(new Date());
+  const trackW = days.length * DAYW;
+  const idxOf = ds => days.indexOf(ds);
+  const sAnchorStart = parse(state.sprint.anchor.start);
+
+  const mkRow = cls => { const r = document.createElement('div'); r.className = 'g-row ' + cls; return r; };
+  const mkLabel = (html, cls) => { const c = document.createElement('div'); c.className = 'g-label ' + (cls||''); c.innerHTML = html; return c; };
+  const mkTrack = cls => { const t = document.createElement('div'); t.className = 'g-track ' + (cls||''); t.style.width = trackW + 'px'; return t; };
+  // kolom prio kosong untuk baris non-fitur, biar track sejajar
+  const mkPrioSpacer = () => { const c = document.createElement('div'); c.className = 'g-prio'; c.style.left = 'var(--labelw)'; return c; };
+  const xOf = i => (i * DAYW) + 'px';
+
+  /* --- baris 1: BULAN --- */
+  const rM = mkRow('h-month');
+  rM.appendChild(mkLabel('Month'));
+  rM.appendChild(mkPrioSpacer());
+  const tM = mkTrack();
+  let mI = 0;
+  while (mI < days.length) {
+    const key = days[mI].slice(0, 7);
+    let j = mI; while (j + 1 < days.length && days[j+1].slice(0,7) === key) j++;
+    const c = document.createElement('div');
+    c.className = 'h-month-cell';
+    c.style.left = xOf(mI); c.style.width = ((j - mI + 1) * DAYW) + 'px';
+    const d = parse(days[mI]);
+    c.textContent = MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+    tM.appendChild(c);
+    mI = j + 1;
+  }
+  rM.appendChild(tM); el.appendChild(rM);
+
+  /* --- baris 2: SPRINT + milestone --- */
+  const rS = mkRow('h-sprint');
+  rS.appendChild(mkLabel('Sprint'));
+  rS.appendChild(mkPrioSpacer());
+  const tS = mkTrack();
+  sp.forEach(s => {
+    const si = idxOf(s.start), ei = idxOf(s.end);
+    if (si < 0 && ei < 0) return;
+    const a = Math.max(si, 0), b = ei >= 0 ? ei : days.length - 1;
+    const c = document.createElement('div');
+    c.className = 'h-sprint-cell';
+    c.style.left = xOf(a); c.style.width = ((b - a + 1) * DAYW) + 'px';
+    const pill = document.createElement('span');
+    pill.className = 'sprint-pill' + (s.no === state.sprint.anchor.no ? ' active' : '');
+    pill.textContent = 'S' + s.no;
+    c.appendChild(pill);
+    tS.appendChild(c);
+  });
+  state.milestones.forEach(m => {
+    const mi = idxOf(m.date);
+    if (mi < 0) return;
+    const dia = document.createElement('div');
+    dia.className = 'ms';
+    dia.style.left = `calc(${xOf(mi)} + ${DAYW/2 - 5}px)`;
+    dia.dataset.lbl = fmtDay(m.date);
+    dia.title = 'Klik untuk hapus';
+    dia.onclick = () => delMilestone(m.id);
+    tS.appendChild(dia);
+  });
+  rS.appendChild(tS); el.appendChild(rS);
+
+  /* --- baris 3: WEEK (W1/W2 per sprint) --- */
+  const rW = mkRow('h-week');
+  rW.appendChild(mkLabel('Week'));
+  rW.appendChild(mkPrioSpacer());
+  const tW = mkTrack();
+  let wI = 0;
+  while (wI < days.length) {
+    const ds = days[wI];
+    const wk = getWeek(parse(ds));
+    let j = wI; while (j + 1 < days.length && getWeek(parse(days[j+1])) === wk) j++;
+    const c = document.createElement('div');
+    c.className = 'h-week-cell';
+    c.style.left = xOf(wI); c.style.width = ((j - wI + 1) * DAYW) + 'px';
+    // nomor week dalam sprint (W1/W2), bukan dari awal tahun
+    const sp = sprints().find(s => ds >= s.start && ds <= s.end);
+    c.textContent = sp ? 'W' + (Math.floor(daysBetween(sp.start, ds) / 7) + 1) : 'W' + wk;
+    tW.appendChild(c);
+    wI = j + 1;
+  }
+  rW.appendChild(tW); el.appendChild(rW);
+
+  /* --- baris 4: TANGGAL --- */
+  const rD = mkRow('h-day');
+  rD.appendChild(mkLabel('Date'));
+  rD.appendChild(mkPrioSpacer());
+  const tD = mkTrack();
+  days.forEach((ds, i) => {
+    const c = document.createElement('div');
+    c.className = 'h-day-cell' + (isWe(parse(ds)) ? ' we' : '') + (ds === today ? ' td' : '');
+    c.style.left = xOf(i); c.style.width = DAYW + 'px';
+    c.textContent = parse(ds).getDate();
+    tD.appendChild(c);
+  });
+  rD.appendChild(tD); el.appendChild(rD);
+
+  /* --- baris fitur --- */
+  let overCount = 0;
+  state.features.forEach(f => {
+    const slots = f.slots.slice().sort((a,b) => (a.start||'') < (b.start||'') ? -1 : 1);
+
+    // main row: semua slot ditumpuk
+    const r = mkRow('f-row');
+    const lbl = mkLabel(`<span class="f-chev">${f.open ? '▾' : '▸'}</span>` +
+      `<span>${esc(f.name)}</span>`);
+    lbl.onclick = () => toggleFeatOpen(f.id);
+    r.appendChild(lbl);
+    const prioCell = document.createElement('div');
+    prioCell.className = 'g-prio';
+    prioCell.innerHTML = `<span class="f-prio ${esc(f.prio)}">${f.prio ? esc(f.prio) : ''}</span>`;
+    prioCell.onclick = () => toggleFeatOpen(f.id);
+    r.appendChild(prioCell);
+    const tr = mkTrack();
+    // main row: 2 parent bar — Tech (summary) & Product (union semua slot non-tech)
+    const rangeOf = s => {
+      const a0 = Math.max(idxOf(s.start), 0), b0 = idxOf(s.end) >= 0 ? idxOf(s.end) : days.length - 1;
+      return [a0, b0];
+    };
+    // TECH parent bar
+    const techSlots = slots.filter(s => s.team === 'tech' && s.start && s.end && !(s.end < start) && !(s.start > end));
+    if (techSlots.length) {
+      const a0 = Math.min(...techSlots.map(s => rangeOf(s)[0]));
+      const b0 = Math.max(...techSlots.map(s => rangeOf(s)[1]));
+      const totFe = techSlots.reduce((n, s) => n + (+s.fe || 0), 0);
+      const totBe = techSlots.reduce((n, s) => n + (+s.be || 0), 0);
+      const wrap = document.createElement('div');
+      wrap.className = 'bar bar-wrap';
+      wrap.style.left = `calc(${xOf(a0)} + 2px)`;
+      wrap.style.width = `calc(${(b0 - a0 + 1) * DAYW}px - 4px)`;
+      wrap.style.top = '4px';
+      wrap.textContent = `Tech ${totFe}FE · ${totBe}BE`;
+      wrap.title = `${f.name} — Tech ${fmtDay(days[a0])} → ${fmtDay(days[b0])} · expand for FE/BE detail`;
+      tr.appendChild(wrap);
+    }
+    // PRODUCT parent bar (union semua slot non-tech)
+    const ntSlots = slots.filter(s => s.team !== 'tech' && s.team !== 'qareg' && s.team !== 'release' && s.start && s.end && !(s.end < start) && !(s.start > end));
+    if (ntSlots.length) {
+      const a0 = Math.min(...ntSlots.map(s => rangeOf(s)[0]));
+      const b0 = Math.max(...ntSlots.map(s => rangeOf(s)[1]));
+      const acts = [...new Set(ntSlots.map(s => s.label || TEAMS[s.team]))];
+      const wrap = document.createElement('div');
+      wrap.className = 'bar bar-product';
+      wrap.style.left = `calc(${xOf(a0)} + 2px)`;
+      wrap.style.width = `calc(${(b0 - a0 + 1) * DAYW}px - 4px)`;
+      wrap.style.top = '4px';
+      wrap.textContent = acts.join(' · ');
+      wrap.title = `${f.name} — ${acts.join(', ')} ${fmtDay(days[a0])} → ${fmtDay(days[b0])}`;
+      tr.appendChild(wrap);
+    }
+    // QA REG & RELEASE (legacy per-fitur): bar sendiri di main row
+    const specialSlots = slots.filter(s => (s.team === 'qareg' || s.team === 'release') && s.start && s.end && !(s.end < start) && !(s.start > end));
+    specialSlots.forEach(s => {
+      const [a0, b0] = rangeOf(s);
+      const bar = document.createElement('div');
+      bar.className = 'bar b-' + s.team;
+      bar.style.left = `calc(${xOf(a0)} + 2px)`;
+      bar.style.width = `calc(${(b0 - a0 + 1) * DAYW}px - 4px)`;
+      bar.style.top = '4px';
+      bar.textContent = s.team === 'qareg' ? `QA Reg ${fmtDay(s.start)}–${fmtDay(s.end)}` : `Release ${fmtDay(s.start)}`;
+      bar.title = `${f.name} — ${TEAMS[s.team]} ${fmtDay(s.start)} → ${fmtDay(s.end)}`;
+      tr.appendChild(bar);
+    });
+    r.appendChild(tr);
+    el.appendChild(r);
+
+    // sub-rows saat expand, urutan: non-tech (Product/Design/QA) → Tech BE → Tech FE
+    if (f.open) {
+      // Product/Design/QA detail: satu baris per slot
+      ntSlots.forEach(s => {
+        const sr = mkRow('sub-row');
+        sr.appendChild(mkLabel(`${TEAMS[s.team]}${s.label ? ': ' + esc(s.label) : ''}`));
+        sr.appendChild(mkPrioSpacer());
+        const st = mkTrack();
+        const [a0, b0] = rangeOf(s);
+        const bar = document.createElement('div');
+        bar.className = 'bar b-' + s.team;
+        bar.style.left = `calc(${xOf(a0)} + 2px)`;
+        bar.style.width = `calc(${(b0 - a0 + 1) * DAYW}px - 4px)`;
+        bar.textContent = s.label || TEAMS[s.team];
+        bar.title = `${f.name} — ${TEAMS[s.team]}${s.label ? ' (' + s.label + ')' : ''} ${fmtDay(s.start)} → ${fmtDay(s.end)}`;
+        st.appendChild(bar);
+        sr.appendChild(st);
+        el.appendChild(sr);
+      });
+      // Tech BE & Tech FE
+      const techDef = [
+        { name: 'Tech BE', cls: 'b-techbe', kind: 'be' },
+        { name: 'Tech FE', cls: 'b-techfe', kind: 'fe' }
+      ];
+      techDef.forEach(def => {
+        const items = techSlots.filter(s => +s[def.kind] > 0);
+        if (!items.length) return;
+        const sr = mkRow('sub-row');
+        sr.appendChild(mkLabel(def.name));
+        sr.appendChild(mkPrioSpacer());
+        const st = mkTrack();
+        items.forEach(s => {
+          if (!s.start || !s.end || s.end < start || s.start > end) return;
+          let a = Math.max(idxOf(s.start), 0);
+          let b = idxOf(s.end) >= 0 ? idxOf(s.end) : days.length - 1;
+          if (def.kind === 'fe' && s.feStart) { a = Math.max(idxOf(s.feStart), 0); b = idxOf(s.feEnd) >= 0 ? idxOf(s.feEnd) : b; }
+          if (def.kind === 'be' && s.beStart) { a = Math.max(idxOf(s.beStart), 0); b = idxOf(s.beEnd) >= 0 ? idxOf(s.beEnd) : b; }
+          if (b < a) return;
+          const bar = document.createElement('div');
+          bar.className = 'bar ' + def.cls;
+          bar.style.left = `calc(${xOf(a)} + 2px)`;
+          bar.style.width = `calc(${(b - a + 1) * DAYW}px - 4px)`;
+          bar.textContent = `${+s[def.kind]} ${def.kind.toUpperCase()}`;
+          bar.title = `${f.name} — ${def.name} ${fmtDay(days[a])} → ${fmtDay(days[b])} · ${s[def.kind]} ${def.kind.toUpperCase()}`;
+          st.appendChild(bar);
+        });
+        sr.appendChild(st);
+        el.appendChild(sr);
+      });
+    }
+  });
+
+  /* --- kapasitas --- */
+  ['fe','be'].forEach(kind => {
+    const cap = kind === 'fe' ? feCap : beCap;
+    const r = mkRow('cap-row');
+    r.appendChild(mkLabel((kind === 'fe' ? 'FE' : 'BE') + ' / cap.'));
+    r.appendChild(mkPrioSpacer());
+    const tr = mkTrack();
+    days.forEach((ds, i) => {
+      if (isWe(parse(ds))) return; // skip weekend: no FE/BE numbers
+      let used = 0;
+      state.features.forEach(f => f.slots.forEach(s => {
+        if (s.team !== 'tech') return;
+        const from = kind === 'fe' ? (s.feStart || s.start) : (s.beStart || s.start);
+        const to = kind === 'fe' ? (s.feEnd || s.end) : (s.beEnd || s.end);
+        if (from <= ds && ds <= to) used += (+s[kind] || 0);
+      }));
+      if (!used && !cap) return;
+      const over = used > cap;
+      if (over) overCount++;
+      const v = document.createElement('div');
+      v.className = 'cap-v' + (over ? ' over' : '');
+      v.style.left = xOf(i); v.style.width = DAYW + 'px';
+      v.textContent = used + '/' + cap;
+      tr.appendChild(v);
+    });
+    r.appendChild(tr);
+    el.appendChild(r);
+  });
+
+  /* --- overlay: blok kolom release plan + garis today, sejajar kolom tanggal --- */
+  const ov = document.createElement('div');
+  ov.className = 'gantt-overlay';
+  state.releases.forEach(r => {
+    const fa = Math.max(idxOf(r.regFrom), 0);
+    const fb = idxOf(r.regTo) >= 0 ? idxOf(r.regTo) : days.length - 1;
+    if (!(r.regTo < start) && !(r.regFrom > end) && fb >= fa) {
+      const blk = document.createElement('div');
+      blk.className = 'col-block qareg';
+      blk.style.left = xOf(fa);
+      blk.style.width = ((fb - fa + 1) * DAYW) + 'px';
+      blk.title = `${r.name}: code freeze + QA regression ${fmtDay(r.regFrom)} – ${fmtDay(r.regTo)}`;
+      ov.appendChild(blk);
+      const lbl = document.createElement('div');
+      lbl.className = 'col-block-lbl';
+      lbl.style.left = xOf(fa);
+      lbl.style.width = ((fb - fa + 1) * DAYW) + 'px';
+      lbl.textContent = `${r.name} · freeze + QA reg`;
+      ov.appendChild(lbl);
+    }
+    const di = idxOf(r.date);
+    if (di >= 0) {
+      const blk = document.createElement('div');
+      blk.className = 'col-block release';
+      blk.style.left = xOf(di);
+      blk.style.width = DAYW + 'px';
+      blk.title = `${r.name}: release ${fmtDay(r.date)}`;
+      ov.appendChild(blk);
+      const lbl = document.createElement('div');
+      lbl.className = 'col-block-lbl release';
+      lbl.style.left = xOf(di);
+      lbl.style.width = DAYW + 'px';
+      lbl.textContent = 'release';
+      ov.appendChild(lbl);
+    }
+  });
+
+  /* --- garis hari ini (mengikuti jam) --- */
+  const now = new Date();
+  const ti = idxOf(dstr(now));
+  if (ti >= 0) {
+    const line = document.createElement('div');
+    line.className = 'today-line';
+    const frac = (now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds()) / 86400;
+    line.style.left = `${(ti + frac) * DAYW}px`;
+    ov.appendChild(line);
+  }
+  el.appendChild(ov);
+
+  const note = document.getElementById('note');
+  if (overCount) { note.className = 'note warn'; note.textContent = '⚠ Some days exceed capacity (red numbers).'; }
+  else { note.className = 'note'; note.textContent = 'Capacity OK ✓'; }
+}
+
+/* ---------- export / import ---------- */
+function exportJson() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'sprint-' + state.sprint.anchor.no + '.json';
+  a.click();
+}
+function importJson(input) {
+  const file = input.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try { state = JSON.parse(r.result); save(); hydrateSprint(); render(); }
+    catch (e) { alert('Invalid JSON file'); }
+  };
+  r.readAsText(file);
+  input.value = '';
+}
+
+function render() { renderEditor(); renderGantt(); }
+hydrateSprint();
+render();
+
+/* garis today ikut maju sendiri: re-render tiap menit jika tanggal berubah */
+let lastToday = dstr(new Date());
+setInterval(() => {
+  const t = dstr(new Date());
+  if (t !== lastToday) { lastToday = t; renderGantt(); }
+}, 60000);
+</script>
+</body>
+</html>
