@@ -75,5 +75,5 @@ Release planner screen and export (timeline image/HTML, one-line-per-feature sum
 ```bash
 cd server && npm run typecheck
 cd web && npm run build
-cd web && ../server/node_modules/.bin/tsx src/schedule.check.ts
+cd web && ../server/node_modules/.bin/tsx tests/schedule.check.ts
 ```

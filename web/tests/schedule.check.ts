@@ -1,7 +1,7 @@
-// Run: ../server/node_modules/.bin/tsx src/schedule.check.ts
+// Run: ../server/node_modules/.bin/tsx tests/schedule.check.ts
 import assert from 'node:assert/strict';
-import { capacityByWeek, earliestRelease, levelOf } from './schedule';
-import type { Feature, Settings, WeekInfo } from './types';
+import { capacityByWeek, earliestRelease, levelOf } from '../src/schedule';
+import type { Feature, Settings, WeekInfo } from '../src/types';
 
 const weeks: WeekInfo[] = Array.from({ length: 8 }, (_, i) => {
   const d = new Date(Date.UTC(2026, 8, 28 + i * 7));
