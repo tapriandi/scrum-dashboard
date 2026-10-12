@@ -62,7 +62,7 @@
   /* ---------- editor fitur (accordion per fitur) ---------- */
   .feat { border: 1px solid var(--line); border-radius: 8px; margin-bottom: 7px; background: #fff; }
   .feat .acc-head { padding: 7px 10px; }
-  .feat-name { font-weight: 600; background: transparent; border: 1px solid transparent; padding: 2px 4px; border-radius: 5px; flex: 1; min-width: 140px; max-width: 40%; }
+  .feat-name { font-weight: 600; background: transparent; border: 1px solid transparent; padding: 2px 4px; border-radius: 5px; flex: 1; min-width: 140px; width: 100%; }
   .feat-name:hover { border-color: var(--line); }
   .feat-name:focus { border-color: var(--line-strong); outline: none; background: #fff; }
   .prio-sel { width: 100px; font-size: 13px; padding: 4px 6px; }
@@ -445,7 +445,7 @@ function renderEditor() {
       </div>`).join('');
     div.innerHTML = `
       <div class="acc-head" onclick="toggleFeatOpen('${f.id}')" style="justify-content:space-between">
-        <div>
+        <div style="width: 40%">
           <span class="f-chev"></span>
           <input type="text" class="feat-name" value="${esc(f.name)}" onclick="event.stopPropagation()" onchange="setFeature('${f.id}','name',this.value)">
         </div>
