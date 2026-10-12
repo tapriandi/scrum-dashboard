@@ -62,7 +62,7 @@
   /* ---------- editor fitur (accordion per fitur) ---------- */
   .feat { border: 1px solid var(--line); border-radius: 8px; margin-bottom: 7px; background: #fff; }
   .feat .acc-head { padding: 7px 10px; }
-  .feat-name { font-weight: 600; background: transparent; border: 1px solid transparent; padding: 2px 4px; border-radius: 5px; flex: 1; min-width: 140px; }
+  .feat-name { font-weight: 600; background: transparent; border: 1px solid transparent; padding: 2px 4px; border-radius: 5px; flex: 1; min-width: 140px; max-width: 40%; }
   .feat-name:hover { border-color: var(--line); }
   .feat-name:focus { border-color: var(--line-strong); outline: none; background: #fff; }
   .prio-sel { width: 100px; font-size: 13px; padding: 4px 6px; }
@@ -444,19 +444,23 @@ function renderEditor() {
         <button class="btn-del" onclick="delSlot('${f.id}','${s.id}')">✕</button>
       </div>`).join('');
     div.innerHTML = `
-      <div class="acc-head" onclick="toggleFeatOpen('${f.id}')">
-        <span class="f-chev"></span>
-        <input type="text" class="feat-name" value="${esc(f.name)}" onclick="event.stopPropagation()" onchange="setFeature('${f.id}','name',this.value)">
-        <select class="prio-sel ${esc(f.prio)}" onclick="event.stopPropagation()" onchange="setFeature('${f.id}','prio',this.value)">
-          <option value="" ${!f.prio?'selected':''}>–</option>
-          <option value="high" ${f.prio==='high'?'selected':''}>High</option>
-          <option value="medium" ${f.prio==='medium'?'selected':''}>Medium</option>
-          <option value="low" ${f.prio==='low'?'selected':''}>Low</option>
-        </select>
-        <span class="badge" id="badge-${f.id}">${f.slots.length} slot</span>
-        <button class="btn-sm" onclick="event.stopPropagation(); addSlot('${f.id}')">+ Slot</button>
-        <button class="btn-del" onclick="event.stopPropagation(); delFeature('${f.id}')" >Delete</button>
-        <span class="chev"></span>
+      <div class="acc-head" onclick="toggleFeatOpen('${f.id}')" style="justify-content:space-between">
+        <div>
+          <span class="f-chev"></span>
+          <input type="text" class="feat-name" value="${esc(f.name)}" onclick="event.stopPropagation()" onchange="setFeature('${f.id}','name',this.value)">
+        </div>
+        <div>
+          <select class="prio-sel ${esc(f.prio)}" onclick="event.stopPropagation()" onchange="setFeature('${f.id}','prio',this.value)">
+            <option value="" ${!f.prio?'selected':''}>–</option>
+            <option value="high" ${f.prio==='high'?'selected':''}>High</option>
+            <option value="medium" ${f.prio==='medium'?'selected':''}>Medium</option>
+            <option value="low" ${f.prio==='low'?'selected':''}>Low</option>
+          </select>
+          <span class="badge" id="badge-${f.id}">${f.slots.length} slot</span>
+          <button class="btn-sm" onclick="event.stopPropagation(); addSlot('${f.id}')">+ Slot</button>
+          <button class="btn-del" onclick="event.stopPropagation(); delFeature('${f.id}')" >Delete</button>
+          <span class="chev"></span>
+        </div>
       </div>
       <div class="feat-body">
         ${slotsHtml || '<div class="empty-note">No slots yet — add estimates per team; one feature can have many slots (e.g. design 12–13, QA 13, design revision 13, etc.).</div>'}
