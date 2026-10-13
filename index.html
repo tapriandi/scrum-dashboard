@@ -205,6 +205,8 @@
   <div class="acc-head" onclick="togglePanel('panelSettings')">
     <span class="acc-title">Sprint Settings</span>
     <span class="acc-sub" id="settingsSummary"></span>
+    <span id="syncBadge" class="badge" title="data sync status">…</span>
+    <button class="btn-sm" id="authBtn" onclick="event.stopPropagation(); loginAdmin()">🔒 Admin login</button>
     <span class="chev"></span>
   </div>
   <div class="acc-body">
@@ -279,22 +281,110 @@ let state = {
 try {
   const s = localStorage.getItem(KEY);
   if (s) {
-    const p = JSON.parse(s);
-    if (p && p.sprint && p.sprint.anchor) {
-      state = p;
-      if (state.sprint.first < state.sprint.anchor.no) state.sprint.first = state.sprint.anchor.no;
-      if (!Array.isArray(state.releases)) state.releases = [];
-      if (!Array.isArray(state.milestones)) state.milestones = [];
-      if (!Array.isArray(state.features)) state.features = [];
-    }
+    state = normalize(JSON.parse(s)) || state;
   } else {
     // migrasi dari key lama jika ada
     const old = localStorage.getItem('scrum-dashboard-v1') || localStorage.getItem('scrum-dashboard');
-    if (old) { const p = JSON.parse(old); if (p && p.sprint && p.sprint.anchor) state = p; }
+    if (old) state = normalize(JSON.parse(old)) || state;
   }
 } catch (e) {}
 
-function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+/* ---------- persistence: localStorage (instant cache) + remote Turso (shared) ---------- */
+const API = '/api/data';
+const TOKEN_KEY = 'scrum-admin-token';
+let remoteReady = false;
+let syncState = 'local';
+
+function normalize(p) {
+  if (!p || !p.sprint || !p.sprint.anchor) return null;
+  if (p.sprint.first < p.sprint.anchor.no) p.sprint.first = p.sprint.anchor.no;
+  if (!Array.isArray(p.releases)) p.releases = [];
+  if (!Array.isArray(p.milestones)) p.milestones = [];
+  if (!Array.isArray(p.features)) p.features = [];
+  return p;
+}
+
+function save() {
+  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  queuePush();
+}
+
+let pushTimer = null;
+function queuePush() {
+  if (!remoteReady) return;
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  if (!token) { setSync('readonly'); return; }
+  setSync('syncing');
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(() => pushNow(token), 800);
+}
+
+async function pushNow(token) {
+  try {
+    const r = await fetch(API, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', 'x-auth': token },
+      body: JSON.stringify(state),
+    });
+    if (r.status === 401) { sessionStorage.removeItem(TOKEN_KEY); setSync('readonly'); return; }
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    setSync('saved');
+  } catch (e) {
+    setSync('offline');
+  }
+}
+
+async function loadRemote() {
+  try {
+    const r = await fetch(API, { headers: { 'cache-control': 'no-cache' } });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    if (j.data) {
+      const p = normalize(JSON.parse(j.data));
+      if (p) {
+        state = p;
+        try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+      }
+    }
+    remoteReady = true;
+    setSync(sessionStorage.getItem(TOKEN_KEY) ? 'saved' : 'readonly');
+  } catch (e) {
+    remoteReady = false;
+    setSync('offline');
+  }
+}
+
+function setSync(s) {
+  syncState = s;
+  const b = document.getElementById('syncBadge');
+  const a = document.getElementById('authBtn');
+  if (b) {
+    b.textContent = { local: 'local only', syncing: 'saving…', saved: '● synced', readonly: '○ read-only', offline: '⚠ offline', error: '⚠ error' }[s] ?? s;
+    b.style.background = (s === 'saved') ? '#d7eef2' : (s === 'syncing') ? '#fdf6d8' : (s === 'offline' || s === 'error') ? '#fbe3e3' : '#f1f1ee';
+    b.style.color = (s === 'saved') ? '#0a6674' : (s === 'syncing') ? '#9a7d1a' : (s === 'offline' || s === 'error') ? '#b02a2a' : '#7a828c';
+  }
+  if (a) a.textContent = sessionStorage.getItem(TOKEN_KEY) ? '🔓 Admin' : '🔒 Admin login';
+}
+
+function loginAdmin() {
+  if (sessionStorage.getItem(TOKEN_KEY)) {
+    sessionStorage.removeItem(TOKEN_KEY);
+    setSync(remoteReady ? 'readonly' : 'local');
+    return;
+  }
+  const pw = prompt('Admin password (edit access):');
+  if (!pw) return;
+  fetch(API, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json', 'x-auth': pw },
+    body: JSON.stringify(state),
+  }).then(async r => {
+    if (r.status === 401) { alert('Wrong password.'); return; }
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    sessionStorage.setItem(TOKEN_KEY, pw);
+    setSync('saved');
+  }).catch(() => alert('Cannot reach server.'));
+}
 const uid = () => Math.random().toString(36).slice(2, 9);
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const parse = s => new Date(s + 'T00:00:00');
@@ -815,6 +905,10 @@ function importJson(input) {
 function render() { renderEditor(); renderGantt(); }
 hydrateSprint();
 render();
+setSync('local');
+
+// ambil data shared dari server, render ulang setelahnya
+loadRemote().then(() => { hydrateSprint(); render(); });
 
 /* garis today ikut maju sendiri: re-render tiap menit jika tanggal berubah */
 let lastToday = dstr(new Date());
